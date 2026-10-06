@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #070b16;
+  --color-ink-900: #0b1222;
+  --color-ink-800: #111a2e;
+  --color-ink-700: #18233b;
+  --color-ink-600: #24304d;
+  --color-ink-500: #3a4766;
+  --color-mist: #d5dcea;
+  --color-mist-dim: #8d98b3;
+  --color-teal-soft: #6fdccb;
+  --color-teal-deep: #2fa898;
+  --color-rose-soft: #eea6bd;
+  --color-plum: #9d8cf0;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -14px, 0); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}
+
+@layer base {
+  html { color-scheme: dark; }
+  html.light-mode {
+    color-scheme: light;
+    --color-ink-950: #f4f6fb;
+    --color-ink-900: #e9eef7;
+    --color-ink-800: #dce3f1;
+    --color-ink-700: #cbd5e7;
+    --color-ink-600: #94a3b8;
+    --color-ink-500: #64748b;
+    --color-mist: #0f172a;
+    --color-mist-dim: #475569;
+  }
+  ::selection { background: color-mix(in oklab, var(--color-teal-soft) 35%, transparent); }
+}
+
+@layer components {
+  /* Soft aurora wash used behind marketing/auth screens. */
+  .bg-aurora {
+    background:
+      radial-gradient(60rem 40rem at 10% -10%, rgb(111 220 203 / 0.12), transparent 60%),
+      radial-gradient(50rem 36rem at 110% 10%, rgb(157 140 240 / 0.12), transparent 60%),
+      radial-gradient(40rem 30rem at 50% 120%, rgb(238 166 189 / 0.08), transparent 60%),
+      var(--color-ink-950);
+  }
+
+  .glass {
+    background: linear-gradient(180deg, rgb(24 35 59 / 0.72), rgb(17 26 46 / 0.6));
+    border: 1px solid rgb(255 255 255 / 0.06);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  html.light-mode .glass {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.85), rgb(241 245 249 / 0.75));
+    border: 1px solid rgb(0 0 0 / 0.08);
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, var(--color-teal-soft), var(--color-plum) 55%, var(--color-rose-soft));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Subtle dotted texture for the empty chat canvas. */
+  .chat-canvas {
+    background-color: var(--color-ink-900);
+    background-image: radial-gradient(rgb(0 0 0 / 0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Hide scrollbar for Chrome, Safari, Opera, Firefox and IE/Edge */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
