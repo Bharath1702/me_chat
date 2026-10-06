@@ -13,6 +13,8 @@ type UseChatReturn = {
   setMessages: React.Dispatch<React.SetStateAction<PublicMessage[]>>;
   hasMore: boolean;
   loadingMore: boolean;
+  incomingCallSignal: any;
+  sendCallSignal: (signal: any) => void;
   sendMessage: (content: string, media?: PublicMedia | null, replyToId?: string) => void;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   deleteMessage: (messageId: string, forEveryone?: boolean) => Promise<void>;
@@ -29,6 +31,7 @@ export function useChat(currentUserId: string): UseChatReturn {
   const [messages, setMessages] = useState<PublicMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [incomingCallSignal, setIncomingCallSignal] = useState<any>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,6 +86,13 @@ export function useChat(currentUserId: string): UseChatReturn {
         switch (data.type) {
           case "presence": {
             setPartnerOnline(data.status === "online");
+            break;
+          }
+
+          case "call_signal": {
+            if (data.signal) {
+              setIncomingCallSignal(data.signal);
+            }
             break;
           }
 
@@ -304,6 +314,12 @@ export function useChat(currentUserId: string): UseChatReturn {
     }
   }, []);
 
+  const sendCallSignal = useCallback((signal: any) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "call_signal", signal }));
+    }
+  }, []);
+
   const markAsRead = useCallback(() => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "mark_read" }));
@@ -339,6 +355,8 @@ export function useChat(currentUserId: string): UseChatReturn {
     setMessages,
     hasMore,
     loadingMore,
+    incomingCallSignal,
+    sendCallSignal,
     sendMessage,
     editMessage,
     deleteMessage,

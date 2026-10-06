@@ -9,6 +9,8 @@ import { CustomAudioPlayer } from "@/components/chat/CustomAudioPlayer";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import { SearchModal } from "@/components/chat/SearchModal";
 import { SettingsModal } from "@/components/chat/SettingsModal";
+import { ProfileModal } from "@/components/chat/ProfileModal";
+import { AudioCallModal, type CallState } from "@/components/chat/AudioCallModal";
 import { ReactionsModal } from "@/components/chat/ReactionsModal";
 import type { PublicMedia, PublicMessage } from "@/lib/services/message-service";
 import { formatLocalTime, groupMessagesByDate } from "@/lib/utils/date";
@@ -40,6 +42,8 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
     messages,
     hasMore,
     loadingMore,
+    incomingCallSignal,
+    sendCallSignal,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -68,10 +72,18 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Modals
+  // Modals & Audio Call
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [callState, setCallState] = useState<CallState>("idle");
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    if (incomingCallSignal && incomingCallSignal.type === "call_request") {
+      setCallState("incoming");
+    }
+  }, [incomingCallSignal]);
 
   // Media upload & preview states
   const [isUploading, setIsUploading] = useState(false);
@@ -482,6 +494,27 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
         />
       )}
 
+      {/* Profile & Settings Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        currentUserName={currentUserName}
+        partnerName={partnerName}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => setSoundEnabled((prev) => !prev)}
+      />
+
+      {/* Audio Call Modal */}
+      <AudioCallModal
+        callState={callState}
+        partnerName={partnerName}
+        partnerId=""
+        currentUserId={currentUserId}
+        incomingSignal={incomingCallSignal}
+        sendCallSignal={sendCallSignal}
+        onCloseCall={() => setCallState("idle")}
+      />
+
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -521,6 +554,16 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Audio Call Button */}
+          <button
+            onClick={() => setCallState("outgoing")}
+            aria-label="Start Audio Call"
+            title="Start HD Audio Call"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-soft/10 border border-teal-soft/20 text-teal-soft hover:bg-teal-soft/20 transition text-sm shadow-sm"
+          >
+            📞
+          </button>
+
           {/* Search Button */}
           <button
             onClick={() => setIsSearchOpen(true)}
@@ -530,13 +573,17 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
             🔍
           </button>
 
-          {/* Settings Button */}
+          {/* My Profile & Settings Button */}
           <button
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label="Settings"
-            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/5 border border-white/5 text-mist-dim hover:text-mist hover:bg-white/10 transition text-sm"
+            onClick={() => setIsProfileOpen(true)}
+            aria-label="My Profile & Settings"
+            title="My Profile & Settings"
+            className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-2.5 py-1.5 text-mist hover:bg-white/10 transition"
           >
-            ⚙️
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-teal-soft to-plum font-bold text-ink-950 text-xs">
+              {currentUserName ? currentUserName.charAt(0).toUpperCase() : "U"}
+            </div>
+            <span className="text-xs font-semibold hidden md:inline">{currentUserName}</span>
           </button>
 
           <div className="hidden sm:flex items-center gap-2 text-xs bg-white/5 px-3 py-1.5 rounded-full border border-white/5">

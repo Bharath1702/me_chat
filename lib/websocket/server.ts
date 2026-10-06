@@ -153,6 +153,17 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
             }
             break;
           }
+
+          case "call_signal": {
+            if (ws.partnerId) {
+              sendToUser(ws.partnerId, {
+                type: "call_signal",
+                fromUserId: ws.userId,
+                signal: payload.signal,
+              });
+            }
+            break;
+          }
         }
       } catch (err) {
         console.error("[ws:handler] Message parse error:", err);
