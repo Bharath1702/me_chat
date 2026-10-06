@@ -1013,7 +1013,10 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
           <AudioRecorder
             onConfirm={(blob, duration) => {
               setIsRecordingAudio(false);
-              const audioFile = new File([blob], "voice_message.webm", { type: blob.type });
+              let ext = "webm";
+              if (blob.type.includes("mp4")) ext = "mp4";
+              else if (blob.type.includes("ogg")) ext = "ogg";
+              const audioFile = new File([blob], `voice_message.${ext}`, { type: blob.type });
               processAndUploadFile(audioFile, "audio", { duration });
             }}
             onCancel={() => setIsRecordingAudio(false)}

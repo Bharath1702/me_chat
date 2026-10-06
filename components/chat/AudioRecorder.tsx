@@ -42,16 +42,42 @@ export function AudioRecorder({
           return;
         }
 
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true },
+            sampleRate: { ideal: 48000 },
+            channelCount: { ideal: 1 },
+          },
+        });
         
-        let mimeType = "audio/webm";
-        if (MediaRecorder.isTypeSupported("audio/mp4")) {
-          mimeType = "audio/mp4";
-        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
-          mimeType = "audio/ogg";
+        // Prioritize high-fidelity voice codecs (Opus codec is WhatsApp/Telegram standard)
+        const preferredTypes = [
+          "audio/webm;codecs=opus",
+          "audio/ogg;codecs=opus",
+          "audio/mp4;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/aac",
+        ];
+
+        let selectedType = "";
+        for (const type of preferredTypes) {
+          if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
+            selectedType = type;
+            break;
+          }
         }
 
-        const recorder = new MediaRecorder(stream, { mimeType });
+        const recorderOptions: MediaRecorderOptions = {
+          audioBitsPerSecond: 128000, // 128 kbps high quality audio bitrate
+        };
+        if (selectedType) {
+          recorderOptions.mimeType = selectedType;
+        }
+
+        const recorder = new MediaRecorder(stream, recorderOptions);
         mediaRecorderRef.current = recorder;
         chunksRef.current = [];
 
@@ -62,7 +88,8 @@ export function AudioRecorder({
         };
 
         recorder.onstop = () => {
-          const blob = new Blob(chunksRef.current, { type: mimeType });
+          const finalMimeType = selectedType || recorder.mimeType || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: finalMimeType });
           const url = URL.createObjectURL(blob);
           setRecordedBlob(blob);
           setAudioUrl(url);
