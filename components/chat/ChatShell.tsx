@@ -774,66 +774,98 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                             ⋮
                           </button>
 
-                          {/* Dropdown Action Menu positioned next to the three dots icon */}
+                          {/* Centered Fixed Action Modal */}
                           {isMenuOpen && (
                             <>
                               <div
-                                className="fixed inset-0 z-30"
+                                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
                                 onClick={() => setActiveMenuMessageId(null)}
                               />
-                              <div
-                                className={`absolute z-40 w-44 rounded-2xl border border-white/10 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in duration-150 top-1/2 -translate-y-1/2 ${
-                                  isMe ? "right-full mr-2" : "left-full ml-2"
-                                }`}
-                              >
-                                <button
-                                  onClick={() => {
-                                    setReplyingTo(msg);
-                                    setActiveMenuMessageId(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs text-mist hover:bg-white/10 rounded-xl transition flex items-center gap-2"
+                              <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                                <div
+                                  className="pointer-events-auto w-64 rounded-2xl bg-ink-900 border border-white/10 shadow-2xl overflow-hidden"
+                                  style={{ animation: "scaleIn 150ms ease-out" }}
                                 >
-                                  <span>↪️</span> Reply
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setReactionMenuMessageId(msg.id);
-                                    setActiveMenuMessageId(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs text-mist hover:bg-white/10 rounded-xl transition flex items-center gap-2"
-                                >
-                                  <span>❤️</span> React
-                                </button>
-                                {msg.content && (
-                                  <button
-                                    onClick={() => handleCopy(msg)}
-                                    className="w-full text-left px-3 py-1.5 text-xs text-mist hover:bg-white/10 rounded-xl transition flex items-center gap-2"
-                                  >
-                                    <span>📋</span> {copiedId === msg.id ? "Copied" : "Copy"}
-                                  </button>
-                                )}
-                                {isMe && msg.type === "text" && (
-                                  <button
-                                    onClick={() => {
-                                      setEditingMessage(msg);
-                                      setInputContent(msg.content);
-                                      setActiveMenuMessageId(null);
-                                    }}
-                                    className="w-full text-left px-3 py-1.5 text-xs text-mist hover:bg-white/10 rounded-xl transition flex items-center gap-2"
-                                  >
-                                    <span>✏️</span> Edit
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    deleteMessage(msg.id, false);
-                                    setActiveMenuMessageId(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs text-rose-soft hover:bg-white/10 rounded-xl transition flex items-center gap-2"
-                                >
-                                  <span>🗑️</span> Delete for me
-                                </button>
+                                  {/* Message Preview */}
+                                  <div className="px-4 py-3 border-b border-white/10 bg-ink-950/60">
+                                    <p className="text-[11px] text-mist-dim font-medium uppercase tracking-wider mb-1">Message</p>
+                                    <p className="text-xs text-mist line-clamp-2 leading-relaxed">
+                                      {msg.content || (msg.type === "image" ? "Photo" : msg.type === "audio" ? "Voice message" : "Media")}
+                                    </p>
+                                  </div>
 
+                                  {/* Menu Items */}
+                                  <div className="py-1">
+                                    <button
+                                      onClick={() => {
+                                        setReplyingTo(msg);
+                                        setActiveMenuMessageId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-mist hover:bg-white/8 active:bg-white/12 transition"
+                                    >
+                                      Reply
+                                    </button>
+                                    <div className="mx-4 border-t border-white/5" />
+                                    <button
+                                      onClick={() => {
+                                        setReactionMenuMessageId(msg.id);
+                                        setActiveMenuMessageId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-mist hover:bg-white/8 active:bg-white/12 transition"
+                                    >
+                                      React
+                                    </button>
+                                    {msg.content && (
+                                      <>
+                                        <div className="mx-4 border-t border-white/5" />
+                                        <button
+                                          onClick={() => {
+                                            handleCopy(msg);
+                                            setActiveMenuMessageId(null);
+                                          }}
+                                          className="w-full text-left px-4 py-2.5 text-sm text-mist hover:bg-white/8 active:bg-white/12 transition"
+                                        >
+                                          {copiedId === msg.id ? "Copied!" : "Copy text"}
+                                        </button>
+                                      </>
+                                    )}
+                                    {isMe && msg.type === "text" && (
+                                      <>
+                                        <div className="mx-4 border-t border-white/5" />
+                                        <button
+                                          onClick={() => {
+                                            setEditingMessage(msg);
+                                            setInputContent(msg.content);
+                                            setActiveMenuMessageId(null);
+                                          }}
+                                          className="w-full text-left px-4 py-2.5 text-sm text-mist hover:bg-white/8 active:bg-white/12 transition"
+                                        >
+                                          Edit
+                                        </button>
+                                      </>
+                                    )}
+                                    <div className="mx-4 border-t border-white/5" />
+                                    <button
+                                      onClick={() => {
+                                        deleteMessage(msg.id, false);
+                                        setActiveMenuMessageId(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2.5 text-sm text-rose-400 hover:bg-white/8 active:bg-white/12 transition"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+
+                                  {/* Cancel */}
+                                  <div className="border-t border-white/10">
+                                    <button
+                                      onClick={() => setActiveMenuMessageId(null)}
+                                      className="w-full text-center px-4 py-2.5 text-sm text-mist-dim hover:text-mist hover:bg-white/5 active:bg-white/10 transition font-medium"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </>
                           )}
