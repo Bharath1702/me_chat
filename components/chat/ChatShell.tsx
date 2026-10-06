@@ -808,15 +808,15 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
 
       {/* Image Preview Banner */}
       {imagePreviewUrl && (
-        <div className="border-t border-white/10 bg-ink-900/95 p-3 flex items-center justify-between gap-4 animate-fade-up">
-          <div className="flex items-center gap-3">
-            <img src={imagePreviewUrl} alt="Preview" className="h-14 w-14 rounded-xl object-cover border border-white/10" />
-            <div>
-              <p className="text-xs font-semibold text-mist">{selectedImageFile?.name || "Pasted image"}</p>
+        <div className="border-t border-white/10 bg-ink-900/95 p-3 flex items-center justify-between gap-3 animate-fade-up min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <img src={imagePreviewUrl} alt="Preview" className="h-14 w-14 rounded-xl object-cover border border-white/10 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-mist truncate max-w-full">{selectedImageFile?.name || "Pasted image"}</p>
               <p className="text-[11px] text-mist-dim">Ready to send</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -831,7 +831,7 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
               type="button"
               onClick={() => handleSubmit()}
               disabled={isUploading}
-              className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-teal-soft to-teal-deep text-ink-950 rounded-xl hover:brightness-110 shadow-md"
+              className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-teal-soft to-teal-deep text-ink-950 rounded-xl hover:brightness-110 shadow-md whitespace-nowrap"
             >
               {isUploading ? `Uploading ${uploadProgress}%` : "Send Photo"}
             </button>
