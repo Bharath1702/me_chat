@@ -600,7 +600,9 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                     id={`msg-${msg.id}`}
                     className={`group/msg relative flex flex-col transition-colors duration-500 p-1 rounded-2xl ${
                       isMe ? "items-end" : "items-start"
-                    } ${isHighlighted ? "bg-teal-soft/20 ring-2 ring-teal-soft/50" : ""}`}
+                    } ${isHighlighted ? "bg-teal-soft/20 ring-2 ring-teal-soft/50" : ""} ${
+                      isMenuOpen ? "z-[45]" : ""
+                    }`}
                   >
                     {/* Sender Name & Avatar Badge */}
                     <div
