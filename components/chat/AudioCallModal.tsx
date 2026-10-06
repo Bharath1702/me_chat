@@ -39,25 +39,15 @@ export function AudioCallModal({
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const ringtoneOscRef = useRef<OscillatorNode | null>(null);
 
-  // Sync internal state with prop state
+  // Sync internal call state with props
   useEffect(() => {
     setActiveCallState(callState);
   }, [callState]);
 
-  // Clean up WebRTC peer connection and tracks
+  // Clean up WebRTC peer connection and audio tracks
   const cleanup = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (ringtoneOscRef.current) {
-      try { ringtoneOscRef.current.stop(); } catch {}
-      ringtoneOscRef.current = null;
-    }
-    if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch {}
-      audioContextRef.current = null;
-    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -69,40 +59,7 @@ export function AudioCallModal({
     setDuration(0);
   }, []);
 
-  // Helper to play ringing tone using Web Audio API
-  const playRingtone = useCallback(() => {
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioCtx();
-      audioContextRef.current = ctx;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      ringtoneOscRef.current = osc;
-    } catch (e) {
-      console.warn("Ringtone play error:", e);
-    }
-  }, []);
-
-  const stopRingtone = useCallback(() => {
-    if (ringtoneOscRef.current) {
-      try { ringtoneOscRef.current.stop(); } catch {}
-      ringtoneOscRef.current = null;
-    }
-    if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch {}
-      audioContextRef.current = null;
-    }
-  }, []);
-
-  // Acquire high-quality microphone stream (same constraints as voice recorder)
+  // Acquire high-quality microphone stream (48kHz sample rate, noise suppression)
   const getHighQualityAudioStream = async () => {
     return await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -138,7 +95,6 @@ export function AudioCallModal({
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
-        stopRingtone();
         setActiveCallState("connected");
         setDuration(0);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -155,7 +111,7 @@ export function AudioCallModal({
     };
 
     return pc;
-  }, [sendCallSignal, stopRingtone]);
+  }, [sendCallSignal]);
 
   // Handle incoming signaling messages from partner
   useEffect(() => {
@@ -164,31 +120,42 @@ export function AudioCallModal({
     const handleSignal = async () => {
       const { type } = incomingSignal;
 
-      if (type === "offer") {
+      if (type === "call_accepted") {
+        // Partner accepted call -> Caller creates offer
         try {
           const pc = createPeerConnection();
-          const localStream = await getHighQualityAudioStream();
-          localStreamRef.current = localStream;
-          localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendCallSignal({ type: "offer", sdp: offer });
+        } catch (err) {
+          console.error("Error creating offer:", err);
+          handleEndCall();
+        }
+      } else if (type === "offer") {
+        // Receiver receives offer -> create answer
+        try {
+          const pc = createPeerConnection();
           await pc.setRemoteDescription(new RTCSessionDescription(incomingSignal.sdp));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-
           sendCallSignal({ type: "answer", sdp: answer });
+          setActiveCallState("connected");
         } catch (err) {
           console.error("Error handling offer:", err);
           handleEndCall();
         }
       } else if (type === "answer") {
+        // Caller receives answer -> set remote description
         try {
           if (pcRef.current) {
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingSignal.sdp));
+            setActiveCallState("connected");
           }
         } catch (err) {
           console.error("Error handling answer:", err);
         }
       } else if (type === "candidate") {
+        // Add ICE candidate
         try {
           if (pcRef.current && incomingSignal.candidate) {
             await pcRef.current.addIceCandidate(new RTCIceCandidate(incomingSignal.candidate));
@@ -197,52 +164,51 @@ export function AudioCallModal({
           console.error("Error adding ice candidate:", err);
         }
       } else if (type === "reject" || type === "cancel" || type === "end") {
-        stopRingtone();
         cleanup();
         onCloseCall();
       }
     };
 
     handleSignal();
-  }, [incomingSignal, createPeerConnection, sendCallSignal, stopRingtone, cleanup, onCloseCall]);
+  }, [incomingSignal, createPeerConnection, sendCallSignal, cleanup, onCloseCall]);
 
-  // Handle outgoing call setup when initiated
+  // Handle outgoing call setup when initiated by caller
   useEffect(() => {
     if (callState === "outgoing") {
-      playRingtone();
       const setupCall = async () => {
         try {
           const pc = createPeerConnection();
           const localStream = await getHighQualityAudioStream();
           localStreamRef.current = localStream;
           localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-
           sendCallSignal({ type: "call_request" });
-          sendCallSignal({ type: "offer", sdp: offer });
         } catch (err) {
-          console.error("Error setting up outgoing call:", err);
+          console.error("Error acquiring mic for outgoing call:", err);
           handleEndCall();
         }
       };
       setupCall();
-    } else if (callState === "incoming") {
-      playRingtone();
     }
   }, [callState]);
 
-  // Accept incoming call
+  // Accept incoming call (triggered on user click)
   const handleAcceptCall = async () => {
-    stopRingtone();
-    // Signal to caller that we accepted; offer processing happens when offer signal arrives
-    sendCallSignal({ type: "accept_request" });
+    try {
+      const pc = createPeerConnection();
+      const localStream = await getHighQualityAudioStream();
+      localStreamRef.current = localStream;
+      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+      sendCallSignal({ type: "call_accepted" });
+      setActiveCallState("connected");
+    } catch (err) {
+      console.error("Error accepting call:", err);
+      handleEndCall();
+    }
   };
 
   // Reject incoming call
   const handleRejectCall = () => {
-    stopRingtone();
     sendCallSignal({ type: "reject" });
     cleanup();
     onCloseCall();
@@ -250,7 +216,6 @@ export function AudioCallModal({
 
   // End active call
   const handleEndCall = () => {
-    stopRingtone();
     sendCallSignal({ type: "end" });
     cleanup();
     onCloseCall();

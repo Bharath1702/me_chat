@@ -573,17 +573,14 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
             🔍
           </button>
 
-          {/* My Profile & Settings Button */}
+          {/* Profile & Settings Button */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            aria-label="My Profile & Settings"
-            title="My Profile & Settings"
-            className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-2.5 py-1.5 text-mist hover:bg-white/10 transition"
+            aria-label="Profile & Settings"
+            title="Profile & Settings"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/5 border border-white/5 text-mist-dim hover:text-mist hover:bg-white/10 transition text-sm"
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-teal-soft to-plum font-bold text-ink-950 text-xs">
-              {currentUserName ? currentUserName.charAt(0).toUpperCase() : "U"}
-            </div>
-            <span className="text-xs font-semibold hidden md:inline">{currentUserName}</span>
+            ⚙️
           </button>
 
           <div className="hidden sm:flex items-center gap-2 text-xs bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
@@ -598,8 +595,6 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
             />
             <span className="capitalize text-mist-dim">{connectionState}</span>
           </div>
-
-          <LogoutButton id="chat-logout" />
         </div>
       </header>
 
