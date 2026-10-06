@@ -34,7 +34,7 @@ export default async function ConnectPage() {
           <p className="text-xs uppercase tracking-wider text-mist-dim">Your TwoChat ID</p>
           <p className="font-mono text-lg font-semibold tracking-[0.2em] text-teal-soft">{user.connectionId}</p>
         </div>
-        <CopyButton id="copy-own-connection-id" value={user.connectionId} />
+        <CopyButton id="copy-own-connection-id" value={user.connectionId} isConnectionId={true} />
       </div>
     </AuthShell>
   );

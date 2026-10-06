@@ -2,12 +2,32 @@
 
 import { useState } from "react";
 
-export function CopyButton({ value, id, label = "Copy ID" }: { value: string; id: string; label?: string }) {
+export function CopyButton({
+  value,
+  id,
+  label = "Copy Connection Link",
+  isConnectionId = false,
+}: {
+  value: string;
+  id: string;
+  label?: string;
+  isConnectionId?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(value);
+      let textToCopy = value;
+      if (
+        isConnectionId ||
+        (!value.startsWith("http") && /^[A-Z]{3}-?[A-Z0-9]{4}$/i.test(value.trim()))
+      ) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const cleanId = value.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        const formattedId = cleanId.length === 7 ? `${cleanId.slice(0, 3)}-${cleanId.slice(3)}` : value;
+        textToCopy = `${origin}/connect?code=${formattedId}`;
+      }
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -25,10 +45,10 @@ export function CopyButton({ value, id, label = "Copy ID" }: { value: string; id
     >
       {copied ? (
         <>
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+          <svg viewBox="0 0 20 20" className="h-4 w-4 text-teal-soft" fill="currentColor" aria-hidden="true">
             <path d="M7.7 13.3 4.4 10l-1.4 1.4 4.7 4.7 9.3-9.3-1.4-1.4z" />
           </svg>
-          Copied
+          Link Copied!
         </>
       ) : (
         <>

@@ -7,6 +7,11 @@ export const CONNECTION_ID_REGEX = /^[A-Z]{3}-[A-Z0-9]{4}$/;
 
 /** Uppercases, strips spaces/dashes and re-inserts the dash: "ahn 7k2m" → "AHN-7K2M". */
 export function normalizeConnectionId(raw: string): string {
+  // Extract 3-letter prefix and 4-char suffix from URLs or raw input
+  const match = raw.toUpperCase().match(/([A-Z]{3})-?([A-Z0-9]{4})/);
+  if (match) {
+    return `${match[1]}-${match[2]}`;
+  }
   const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (compact.length === 7) return `${compact.slice(0, 3)}-${compact.slice(3)}`;
   return raw.trim().toUpperCase();

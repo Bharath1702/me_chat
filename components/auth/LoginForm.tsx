@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormAlert, Input } from "@/components/ui/Input";
@@ -12,6 +12,8 @@ type FieldErrors = { connectionId?: string; password?: string };
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCode = searchParams.get("code") || searchParams.get("connect");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,7 +81,7 @@ export function LoginForm() {
       </Button>
       <p className="text-center text-sm text-mist-dim">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-teal-soft hover:underline">
+        <Link href={rawCode ? `/register?code=${rawCode}` : "/register"} className="font-medium text-teal-soft hover:underline">
           Register
         </Link>
       </p>
