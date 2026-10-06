@@ -709,9 +709,20 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                             : "glass text-mist border border-white/10 rounded-bl-xs"
                         }`}
                       >
-                        {/* Reply Preview Header */}
+                        {/* Reply Preview Header — tap to scroll to original message */}
                         {msg.replyTo && !msg.isDeleted && (
-                          <div className="mb-2 p-2 rounded-xl bg-black/20 border-l-2 border-teal-soft text-xs text-mist-dim space-y-0.5">
+                          <div
+                            className="mb-2 p-2 rounded-xl bg-black/20 border-l-2 border-teal-soft text-xs text-mist-dim space-y-0.5 cursor-pointer active:bg-black/30 transition"
+                            onClick={() => {
+                              const targetId = msg.replyTo!.messageId;
+                              const el = document.getElementById(`msg-${targetId}`);
+                              if (el) {
+                                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                setHighlightedMessageId(targetId);
+                                setTimeout(() => setHighlightedMessageId(null), 2500);
+                              }
+                            }}
+                          >
                             <p className="font-semibold text-teal-soft">Replying to message</p>
                             <p className="line-clamp-1 italic">{msg.replyTo.content}</p>
                           </div>
@@ -822,17 +833,7 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                                 >
                                   <span>🗑️</span> Delete for me
                                 </button>
-                                {isMe && (
-                                  <button
-                                    onClick={() => {
-                                      deleteMessage(msg.id, true);
-                                      setActiveMenuMessageId(null);
-                                    }}
-                                    className="w-full text-left px-3 py-1.5 text-xs text-rose-soft font-semibold hover:bg-white/10 rounded-xl transition flex items-center gap-2"
-                                  >
-                                    <span>🚨</span> Delete for everyone
-                                  </button>
-                                )}
+
                               </div>
                             </>
                           )}
