@@ -9,6 +9,7 @@ import { CustomAudioPlayer } from "@/components/chat/CustomAudioPlayer";
 import { EmojiPicker } from "@/components/chat/EmojiPicker";
 import { SearchModal } from "@/components/chat/SearchModal";
 import { SettingsModal } from "@/components/chat/SettingsModal";
+import { ReactionsModal } from "@/components/chat/ReactionsModal";
 import type { PublicMedia, PublicMessage } from "@/lib/services/message-service";
 import { formatLocalTime, groupMessagesByDate } from "@/lib/utils/date";
 import {
@@ -20,6 +21,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type ChangeEvent,
+  type TouchEvent,
 } from "react";
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "🔥"];
@@ -56,8 +58,15 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
   const [editingMessage, setEditingMessage] = useState<PublicMessage | null>(null);
   const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
   const [reactionMenuMessageId, setReactionMenuMessageId] = useState<string | null>(null);
+  const [selectedReactionModalMessage, setSelectedReactionModalMessage] = useState<PublicMessage | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // Touch & Swipe states
+  const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -172,6 +181,34 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
+
+  // Handle mobile keyboard focus & viewport resize (especially iOS Safari)
+  const handleInputFocus = () => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+      window.scrollTo(0, 0);
+    }, 300);
+  };
+
+  useEffect(() => {
+    const handleViewportResize = () => {
+      if (window.visualViewport) {
+        window.scrollTo(0, 0);
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportResize);
+      return () => {
+        window.visualViewport?.removeEventListener("resize", handleViewportResize);
+      };
+    }
+  }, []);
 
   const handleInputChange = (val: string) => {
     setInputContent(val);
@@ -417,6 +454,23 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
         }}
       />
 
+      {/* Reactions Modal */}
+      {selectedReactionModalMessage && (
+        <ReactionsModal
+          isOpen={!!selectedReactionModalMessage}
+          onClose={() => setSelectedReactionModalMessage(null)}
+          reactions={selectedReactionModalMessage.reactions}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          partnerName={partnerName}
+          onRemoveReaction={(emoji) => {
+            toggleReaction(selectedReactionModalMessage.id, emoji);
+            setSelectedReactionModalMessage(null);
+          }}
+        />
+      )}
+
+      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -571,8 +625,59 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                       </div>
                     )}
 
-                    {/* Message Container Bubble */}
-                    <div className={`relative flex items-center gap-1.5 group/bubble ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                    {/* Message Container Bubble with Swipe-to-Reply & Hold-for-Options */}
+                    <div
+                      className={`relative flex items-center gap-1.5 group/bubble transition-transform duration-150 ${
+                        isMe ? "flex-row-reverse" : "flex-row"
+                      }`}
+                      style={{
+                        transform:
+                          swipingMessageId === msg.id && swipeOffset > 0
+                            ? `translateX(${Math.min(swipeOffset, 70)}px)`
+                            : "none",
+                      }}
+                      onTouchStart={(e: TouchEvent) => {
+                        const touch = e.touches[0];
+                        touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+                        setSwipingMessageId(msg.id);
+
+                        // Long press hold handler (500ms hold opens menu)
+                        longPressTimerRef.current = setTimeout(() => {
+                          if (!msg.isDeleted) {
+                            setActiveMenuMessageId(msg.id);
+                            if (navigator.vibrate) navigator.vibrate(40);
+                          }
+                        }, 500);
+                      }}
+                      onTouchMove={(e: TouchEvent) => {
+                        if (!touchStartPosRef.current) return;
+                        const touch = e.touches[0];
+                        const deltaX = touch.clientX - touchStartPosRef.current.x;
+                        const deltaY = touch.clientY - touchStartPosRef.current.y;
+
+                        // Cancel long press if user moves finger
+                        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                        }
+
+                        // Right swipe detection
+                        if (deltaX > 0 && Math.abs(deltaY) < 30) {
+                          setSwipeOffset(deltaX);
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+
+                        if (swipingMessageId === msg.id && swipeOffset > 50 && !msg.isDeleted) {
+                          setReplyingTo(msg);
+                          if (navigator.vibrate) navigator.vibrate(20);
+                        }
+
+                        setSwipingMessageId(null);
+                        setSwipeOffset(0);
+                        touchStartPosRef.current = null;
+                      }}
+                    >
                       <div
                         className={`relative max-w-[85%] sm:max-w-[70%] rounded-2xl p-2.5 text-sm leading-relaxed ${
                           msg.isDeleted
@@ -713,17 +818,21 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                       )}
                     </div>
 
-                    {/* Reactions Pill Display */}
+                    {/* Reactions Pill Display with Modal Click Trigger */}
                     {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && (
                       <div className="flex gap-1 mt-1 px-1">
-                        {msg.reactions.map((r, i) => (
-                          <span
-                            key={i}
-                            className="text-xs bg-white/10 px-2 py-0.5 rounded-full border border-white/10"
-                          >
-                            {r.emoji}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReactionModalMessage(msg)}
+                          className="flex items-center gap-1 text-xs bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full border border-white/10 transition cursor-pointer"
+                        >
+                          {msg.reactions.map((r, i) => (
+                            <span key={i}>{r.emoji}</span>
+                          ))}
+                          <span className="text-[10px] text-mist-dim ml-0.5 font-semibold">
+                            {msg.reactions.length}
                           </span>
-                        ))}
+                        </button>
                       </div>
                     )}
 
@@ -879,10 +988,11 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                 type="text"
                 value={inputContent}
                 onChange={(e) => handleInputChange(e.target.value)}
+                onFocus={handleInputFocus}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder={`Message ${partnerName}... (or paste image)`}
-                className="w-full rounded-2xl border border-white/10 bg-ink-950/70 pl-4 pr-10 py-2.5 text-sm text-mist placeholder:text-mist-dim/50 focus:border-teal-soft/50 focus:outline-none focus:ring-2 focus:ring-teal-soft/20"
+                className="w-full rounded-2xl border border-white/10 bg-ink-950/70 pl-4 pr-10 py-2.5 text-base sm:text-sm text-mist placeholder:text-mist-dim/50 focus:border-teal-soft/50 focus:outline-none focus:ring-2 focus:ring-teal-soft/20"
               />
               <button
                 type="button"
