@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType, type Model, type Types } from "mongoose";
 
-export const MESSAGE_TYPES = ["text", "emoji", "image", "audio"] as const;
+export const MESSAGE_TYPES = ["text", "emoji", "image", "audio", "call"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
 export const MESSAGE_STATUSES = ["sending", "sent", "delivered", "read"] as const;

@@ -4,6 +4,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 export type CallState = "idle" | "outgoing" | "incoming" | "connected" | "ended";
 
+export type CallSummary = {
+  callStatus: "completed" | "declined" | "missed" | "cancelled";
+  duration?: number;
+  reason?: string;
+};
+
 interface AudioCallModalProps {
   callState: CallState;
   partnerName: string;
@@ -11,7 +17,7 @@ interface AudioCallModalProps {
   currentUserId: string;
   incomingSignal?: any;
   sendCallSignal: (signal: any) => void;
-  onCloseCall: () => void;
+  onCloseCall: (summary?: CallSummary) => void;
 }
 
 const RTC_CONFIG: RTCConfiguration = {
@@ -211,14 +217,26 @@ export function AudioCallModal({
   const handleRejectCall = () => {
     sendCallSignal({ type: "reject" });
     cleanup();
-    onCloseCall();
+    onCloseCall({ callStatus: "declined", reason: "Call declined" });
   };
 
   // End active call
   const handleEndCall = () => {
     sendCallSignal({ type: "end" });
+    const currentDuration = duration;
+    const isCallConnected = activeCallState === "connected";
+    const isCallOutgoing = activeCallState === "outgoing";
+
     cleanup();
-    onCloseCall();
+    onCloseCall({
+      callStatus: isCallConnected ? "completed" : isCallOutgoing ? "cancelled" : "missed",
+      duration: isCallConnected ? currentDuration : undefined,
+      reason: isCallConnected
+        ? undefined
+        : isCallOutgoing
+        ? "Cancelled by caller"
+        : "Not answered",
+    });
   };
 
   // Toggle Mute Microphone

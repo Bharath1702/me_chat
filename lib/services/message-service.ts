@@ -35,7 +35,7 @@ export type PublicMessage = {
   coupleId: string;
   senderId: string;
   receiverId: string;
-  type: "text" | "emoji" | "image" | "audio";
+  type: "text" | "emoji" | "image" | "audio" | "call";
   content: string;
   media?: PublicMedia | null;
   status: "sending" | "sent" | "delivered" | "read";
@@ -71,7 +71,7 @@ export function toPublicMessage(
     coupleId: doc.coupleId.toString(),
     senderId: doc.senderId.toString(),
     receiverId: doc.receiverId.toString(),
-    type: doc.type as "text" | "emoji" | "image" | "audio",
+    type: doc.type as "text" | "emoji" | "image" | "audio" | "call",
     content: isHidden ? "This message was deleted" : doc.content || "",
     media: isHidden ? null : doc.media
       ? {
@@ -176,7 +176,8 @@ export async function sendMessageService(
   content: string,
   clientMessageId?: string,
   mediaInput?: PublicMedia | null,
-  replyToId?: string
+  replyToId?: string,
+  msgType?: "text" | "emoji" | "image" | "audio" | "call"
 ): Promise<{ message: PublicMessage; coupleId: string; receiverId: string }> {
   const isMedia = !!mediaInput;
 
@@ -220,7 +221,7 @@ export async function sendMessageService(
   }
 
   const receiverId = couple.userA.equals(authenticatedUserId) ? couple.userB : couple.userA;
-  let type: "text" | "emoji" | "image" | "audio" = "text";
+  let type: "text" | "emoji" | "image" | "audio" | "call" = msgType || "text";
 
   if (mediaInput) {
     type = mediaInput.mimeType.startsWith("audio/") ? "audio" : "image";

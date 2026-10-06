@@ -15,7 +15,12 @@ type UseChatReturn = {
   loadingMore: boolean;
   incomingCallSignal: any;
   sendCallSignal: (signal: any) => void;
-  sendMessage: (content: string, media?: PublicMedia | null, replyToId?: string) => void;
+  sendMessage: (
+    content: string,
+    media?: PublicMedia | null,
+    replyToId?: string,
+    msgType?: "text" | "emoji" | "image" | "audio" | "call"
+  ) => void;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   deleteMessage: (messageId: string, forEveryone?: boolean) => Promise<void>;
   toggleReaction: (messageId: string, emoji: string) => Promise<void>;
@@ -216,51 +221,60 @@ export function useChat(currentUserId: string): UseChatReturn {
     };
   }, [connectSocket]);
 
-  const sendMessage = useCallback((content: string, media?: PublicMedia | null, replyToId?: string) => {
-    const isMedia = !!media;
-    if (!isMedia && (!content || !content.trim())) return;
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+  const sendMessage = useCallback(
+    (
+      content: string,
+      media?: PublicMedia | null,
+      replyToId?: string,
+      customMsgType?: "text" | "emoji" | "image" | "audio" | "call"
+    ) => {
+      const isMedia = !!media;
+      if (!isMedia && (!content || !content.trim())) return;
+      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
 
-    const clientMessageId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const now = new Date().toISOString();
+      const clientMessageId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const now = new Date().toISOString();
 
-    let msgType: "text" | "emoji" | "image" | "audio" = "text";
-    if (media) {
-      msgType = media.mimeType.startsWith("audio/") ? "audio" : "image";
-    }
+      let msgType: "text" | "emoji" | "image" | "audio" | "call" = customMsgType || "text";
+      if (!customMsgType && media) {
+        msgType = media.mimeType.startsWith("audio/") ? "audio" : "image";
+      }
 
-    const optimisticMsg: PublicMessage = {
-      id: clientMessageId,
-      coupleId: "",
-      senderId: currentUserId,
-      receiverId: "",
-      type: msgType,
-      content: content ? content.trim() : "",
-      media: media || null,
-      status: "sending",
-      isEdited: false,
-      isDeleted: false,
-      deletedForEveryone: false,
-      reactions: [],
-      createdAt: now,
-      updatedAt: now,
-      readAt: null,
-      deliveredAt: null,
-      clientMessageId,
-    };
-
-    setMessages((prev) => [...prev, optimisticMsg]);
-
-    socketRef.current.send(
-      JSON.stringify({
-        type: "send_message",
+      const optimisticMsg: PublicMessage = {
+        id: clientMessageId,
+        coupleId: "",
+        senderId: currentUserId,
+        receiverId: "",
+        type: msgType,
         content: content ? content.trim() : "",
+        media: media || null,
+        status: "sending",
+        isEdited: false,
+        isDeleted: false,
+        deletedForEveryone: false,
+        reactions: [],
+        createdAt: now,
+        updatedAt: now,
+        readAt: null,
+        deliveredAt: null,
         clientMessageId,
-        media: media || undefined,
-        replyToId,
-      })
-    );
-  }, [currentUserId]);
+      };
+
+      setMessages((prev) => [...prev, optimisticMsg]);
+
+      socketRef.current.send(
+        JSON.stringify({
+          type: "send_message",
+          content: content ? content.trim() : "",
+          clientMessageId,
+          media: media || undefined,
+          replyToId,
+          msgType,
+        })
+      );
+    },
+    [currentUserId]
+  );
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     try {

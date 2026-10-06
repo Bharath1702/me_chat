@@ -83,14 +83,15 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
           }
 
           case "send_message": {
-            const { content, clientMessageId, media, replyToId } = payload;
+            const { content, clientMessageId, media, replyToId, msgType } = payload;
             try {
               const res = await sendMessageService(
                 new Types.ObjectId(ws.userId),
                 content,
                 clientMessageId,
                 media,
-                replyToId
+                replyToId,
+                msgType
               );
 
               // Ack back to sender with canonical message

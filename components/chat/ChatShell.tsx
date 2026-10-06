@@ -512,7 +512,12 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
         currentUserId={currentUserId}
         incomingSignal={incomingCallSignal}
         sendCallSignal={sendCallSignal}
-        onCloseCall={() => setCallState("idle")}
+        onCloseCall={(summary) => {
+          setCallState("idle");
+          if (summary) {
+            sendMessage(JSON.stringify(summary), null, undefined, "call");
+          }
+        }}
       />
 
       {/* Settings Modal */}
@@ -793,8 +798,72 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                           />
                         )}
 
+                        {/* Call Log Message */}
+                        {!msg.isDeleted && msg.type === "call" && (
+                          <div className="flex items-center gap-3 py-1 px-1">
+                            {(() => {
+                              let callInfo = { callStatus: "completed", duration: undefined as number | undefined, reason: undefined as string | undefined };
+                              try {
+                                if (msg.content && msg.content.startsWith("{")) {
+                                  callInfo = JSON.parse(msg.content);
+                                }
+                              } catch {}
+
+                              const isCompleted = callInfo.callStatus === "completed";
+                              const isDeclined = callInfo.callStatus === "declined";
+                              const isMissed = callInfo.callStatus === "missed";
+                              const isCancelled = callInfo.callStatus === "cancelled";
+
+                              const formatCallDuration = (secs?: number) => {
+                                if (!secs) return "";
+                                const m = Math.floor(secs / 60);
+                                const s = secs % 60;
+                                return m > 0 ? `${m} min ${s} sec` : `${s} sec`;
+                              };
+
+                              return (
+                                <div className="flex items-center gap-3 w-full">
+                                  <div
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${
+                                      isCompleted
+                                        ? "bg-teal-500/20 text-teal-soft border border-teal-soft/30"
+                                        : isDeclined || isMissed
+                                        ? "bg-rose-500/20 text-rose-soft border border-rose-500/30"
+                                        : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    }`}
+                                  >
+                                    {isCompleted ? "📞" : isDeclined || isMissed ? "📵" : "📞"}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-xs text-mist leading-tight">
+                                      {isCompleted && "Audio Call"}
+                                      {isDeclined && "Call Declined"}
+                                      {isMissed && "Missed Audio Call"}
+                                      {isCancelled && "Cancelled Call"}
+                                    </p>
+                                    <p className="text-[11px] text-mist-dim font-mono mt-0.5">
+                                      {isCompleted && (callInfo.duration ? formatCallDuration(callInfo.duration) : "Call ended")}
+                                      {isDeclined && (callInfo.reason || "Declined by partner")}
+                                      {isMissed && (callInfo.reason || "Not answered")}
+                                      {isCancelled && (callInfo.reason || "Cancelled by caller")}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCallState("outgoing")}
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-mist text-xs transition"
+                                    title="Call back"
+                                  >
+                                    📞
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+
                         {/* Text Content */}
-                        {msg.content && <p className="px-1">{msg.content}</p>}
+                        {msg.type !== "call" && msg.content && <p className="px-1">{msg.content}</p>}
 
                         {/* Edited Marker */}
                         {msg.isEdited && !msg.isDeleted && (
