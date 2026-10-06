@@ -392,8 +392,20 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
 
     if (!inputContent.trim()) return;
 
-    sendMessage(inputContent);
+    // Edit mode: update existing message instead of sending a new one
+    if (editingMessage) {
+      editMessage(editingMessage.id, inputContent.trim());
+      setEditingMessage(null);
+      setInputContent("");
+      sendTyping(false);
+      if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+      return;
+    }
+
+    // Send new message, include replyToId if replying
+    sendMessage(inputContent, null, replyingTo?.id);
     setInputContent("");
+    setReplyingTo(null);
     sendTyping(false);
     if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
 
@@ -633,10 +645,14 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                       style={{
                         transform:
                           swipingMessageId === msg.id && swipeOffset > 0
-                            ? `translateX(${Math.min(swipeOffset, 70)}px)`
+                            ? `translateX(${isMe ? -Math.min(swipeOffset, 70) : Math.min(swipeOffset, 70)}px)`
                             : "none",
+                        WebkitUserSelect: "none",
+                        userSelect: "none",
                       }}
                       onTouchStart={(e: TouchEvent) => {
+                        // Prevent Chrome's default text selection on long-press
+                        e.preventDefault();
                         const touch = e.touches[0];
                         touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                         setSwipingMessageId(msg.id);
@@ -660,9 +676,15 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
                           if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
                         }
 
-                        // Right swipe detection
-                        if (deltaX > 0 && Math.abs(deltaY) < 30) {
-                          setSwipeOffset(deltaX);
+                        // Swipe direction: own messages = right-to-left (negative deltaX), partner = left-to-right (positive deltaX)
+                        if (isMe) {
+                          if (deltaX < 0 && Math.abs(deltaY) < 30) {
+                            setSwipeOffset(Math.abs(deltaX));
+                          }
+                        } else {
+                          if (deltaX > 0 && Math.abs(deltaY) < 30) {
+                            setSwipeOffset(deltaX);
+                          }
                         }
                       }}
                       onTouchEnd={() => {
@@ -863,7 +885,9 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
           <button
             type="button"
             onClick={() => scrollToBottom("smooth")}
-            className="fixed bottom-20 right-6 z-20 flex items-center gap-2 rounded-full glass border border-teal-soft/30 bg-ink-900/90 px-4 py-2 text-xs text-teal-soft shadow-xl backdrop-blur-md hover:bg-ink-800"
+            className={`fixed right-6 z-20 flex items-center gap-2 rounded-full glass border border-teal-soft/30 bg-ink-900/90 px-4 py-2 text-xs text-teal-soft shadow-xl backdrop-blur-md hover:bg-ink-800 ${
+              replyingTo || editingMessage ? "bottom-32" : "bottom-20"
+            }`}
           >
             <span>↓ {unreadCount > 0 ? `${unreadCount} new message(s)` : "Latest messages"}</span>
           </button>
