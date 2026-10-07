@@ -434,7 +434,7 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
 
   return (
     <div
-      className="flex h-dvh w-full flex-col bg-ink-950 text-mist relative"
+      className="flex h-dvh w-full flex-col bg-ink-950 text-mist relative safe-left safe-right"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -532,7 +532,7 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
       />
 
       {/* Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 bg-ink-900/60 px-4 sm:px-6 backdrop-blur-md z-10">
+      <header className="flex shrink-0 items-center justify-between border-b border-white/5 bg-ink-900/60 px-4 sm:px-6 backdrop-blur-md z-10 safe-top" style={{ minHeight: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-3">
           <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-teal-soft/20 to-plum/20 border border-white/10 text-teal-soft font-serif font-medium text-lg">
             {partnerName.charAt(0).toUpperCase()}
@@ -1138,7 +1138,7 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
 
       {/* Message Composer Footer */}
       {!isRecordingAudio && !imagePreviewUrl && (
-        <footer className="shrink-0 border-t border-white/5 bg-ink-900/80 p-3 sm:p-4 backdrop-blur-md">
+        <footer className="shrink-0 border-t border-white/5 bg-ink-900/80 p-3 sm:p-4 backdrop-blur-md safe-bottom">
           <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-center gap-2">
             <button
               type="button"

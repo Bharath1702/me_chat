@@ -25,6 +25,19 @@ export type UsePushNotificationsReturn = {
   toggleNotificationPreview: (show: boolean) => Promise<void>;
 };
 
+async function parseJsonResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
+  const contentType = res.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `${fallbackMessage} (HTTP ${res.status})`);
+  }
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new Error(`${fallbackMessage} (Invalid JSON response from server).`);
+  }
+}
+
 export function usePushNotifications(): UsePushNotificationsReturn {
   const [permission, setPermission] = useState<NotificationPermission>(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -45,22 +58,25 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     // Register service worker if supported
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").then((reg) => {
-        if ("pushManager" in reg) {
-          reg.pushManager.getSubscription().then((sub) => {
-            setIsSubscribed(!!sub);
-          });
-        }
-      }).catch((err) => {
-        console.warn("[usePushNotifications] Service worker registration error:", err);
-      });
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          if ("pushManager" in reg) {
+            reg.pushManager.getSubscription().then((sub) => {
+              setIsSubscribed(!!sub);
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn("[usePushNotifications] Service worker registration error:", err);
+        });
     }
 
     // Fetch user notification settings
     fetch("/api/me/settings")
-      .then((res) => res.json())
+      .then((res) => (res.headers.get("content-type")?.includes("application/json") ? res.json() : null))
       .then((data) => {
-        if (data.ok && data.settings) {
+        if (data && data.ok && data.settings) {
           setShowPreview(data.settings.notificationPreview ?? true);
         }
       })
@@ -96,9 +112,13 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       // Step 3: Fetch VAPID public key from backend
       const keyRes = await fetch("/api/push/vapid-public-key");
-      const keyData = await keyRes.json();
+      const keyData = await parseJsonResponse<{ ok: boolean; publicKey?: string; error?: string }>(
+        keyRes,
+        "Failed to fetch VAPID key"
+      );
+
       if (!keyData.ok || !keyData.publicKey) {
-        throw new Error(keyData.error || "Failed to fetch VAPID key.");
+        throw new Error(keyData.error || "Failed to fetch VAPID key from server.");
       }
 
       // Step 4: Obtain browser PushSubscription
@@ -130,7 +150,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         }),
       });
 
-      const subData = await subRes.json();
+      const subData = await parseJsonResponse<{ ok: boolean; error?: string }>(
+        subRes,
+        "Failed to save subscription on server"
+      );
+
       if (!subData.ok) {
         throw new Error(subData.error || "Failed to save subscription on server.");
       }
@@ -187,7 +211,10 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setError(null);
     try {
       const res = await fetch("/api/push/test", { method: "POST" });
-      const data = await res.json();
+      const data = await parseJsonResponse<{ ok: boolean; error?: string }>(
+        res,
+        "Failed to send test notification"
+      );
       setLoading(false);
       if (!data.ok) {
         setError(data.error || "Failed to send test notification.");

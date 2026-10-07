@@ -3,7 +3,9 @@ import { WebSocketServer } from "ws";
 import { authenticateSocket, type AuthenticatedSocket } from "./auth";
 import { registerSocket, unregisterSocket, sendToUser, isUserOnline, isUserActiveInConversation, setSocketFocusState } from "./manager";
 import { sendMessageService, markMessagesAsReadService, markMessagesAsDeliveredService } from "../services/message-service";
-import { triggerMessagePushNotification } from "../services/push-service";
+import { triggerMessagePushNotification, sendPushNotificationToUser } from "../services/push-service";
+import { User, type UserDocument } from "@/models/User";
+import { connectToDatabase } from "@/lib/mongodb";
 import { Types } from "mongoose";
 
 let wss: WebSocketServer | null = null;
@@ -172,11 +174,40 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
 
           case "call_signal": {
             if (ws.partnerId) {
+              // Always relay signal via WebSocket to online partner
               sendToUser(ws.partnerId, {
                 type: "call_signal",
                 fromUserId: ws.userId,
                 signal: payload.signal,
               });
+
+              // If partner is OFFLINE and this is a call_request, send a push notification
+              if (
+                payload.signal?.type === "call_request" &&
+                !isUserOnline(ws.partnerId)
+              ) {
+                (async () => {
+                  try {
+                    await connectToDatabase();
+                    const caller = await User.findById(ws.userId).lean<UserDocument>();
+                    const callerName = caller?.name || "Someone";
+                    await sendPushNotificationToUser(ws.partnerId!, {
+                      type: "incoming_call",
+                      title: `${callerName} is calling...`,
+                      body: "Tap to open TwoChat and answer the call",
+                      icon: "/icon-192.png",
+                      badge: "/badge-72.png",
+                      data: {
+                        url: "/chat",
+                        callerId: ws.userId,
+                        isCall: true,
+                      },
+                    });
+                  } catch (pushErr) {
+                    console.error("[ws:call_signal] Error sending call push:", pushErr);
+                  }
+                })();
+              }
             }
             break;
           }

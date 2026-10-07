@@ -1,6 +1,6 @@
 // TwoChat Service Worker — PWA Caching & Web Push Notifications
 
-const CACHE_NAME = "twochat-v2";
+const CACHE_NAME = "twochat-v3";
 const STATIC_ASSETS = [
   "/",
   "/chat",
@@ -71,17 +71,37 @@ self.addEventListener("push", (event) => {
   try {
     const payload = event.data.json();
     const title = payload.title || "TwoChat";
-    const options = {
-      body: payload.body || "New message received",
-      icon: payload.icon || "/icon-192.png",
-      badge: payload.badge || "/badge-72.png",
-      data: payload.data || { url: "/chat" },
-      tag: payload.data?.messageId || "twochat-msg",
-      renotify: true,
-      vibrate: [100, 50, 100],
-    };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    // Incoming call notifications get special treatment
+    if (payload.type === "incoming_call" || payload.data?.isCall) {
+      const callOptions = {
+        body: payload.body || "Incoming audio call",
+        icon: payload.icon || "/icon-192.png",
+        badge: payload.badge || "/badge-72.png",
+        data: { ...(payload.data || {}), url: "/chat" },
+        tag: "twochat-incoming-call",
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [300, 100, 300, 100, 300, 100, 300],
+        actions: [
+          { action: "accept_call", title: "✅ Accept" },
+          { action: "decline_call", title: "❌ Decline" },
+        ],
+      };
+      event.waitUntil(self.registration.showNotification(title, callOptions));
+    } else {
+      // Regular message notification
+      const options = {
+        body: payload.body || "New message received",
+        icon: payload.icon || "/icon-192.png",
+        badge: payload.badge || "/badge-72.png",
+        data: payload.data || { url: "/chat" },
+        tag: payload.data?.messageId || "twochat-msg",
+        renotify: true,
+        vibrate: [100, 50, 100],
+      };
+      event.waitUntil(self.registration.showNotification(title, options));
+    }
   } catch (err) {
     console.error("[SW] Error parsing push payload:", err);
   }
@@ -91,8 +111,16 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
+  const action = event.action;
   const targetUrl = event.notification.data?.url || "/chat";
 
+  // Handle call notification action buttons
+  if (action === "decline_call") {
+    // User tapped Decline — just close the notification, nothing else needed
+    return;
+  }
+
+  // For "accept_call" or regular tap — open/focus the chat window
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
