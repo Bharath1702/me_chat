@@ -21,6 +21,7 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true, select: false },
     avatar: { type: String, default: null },
     lastSeen: { type: Date, default: () => new Date() },
+    notificationPreview: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

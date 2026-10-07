@@ -30,6 +30,25 @@ export function isUserOnline(userId: string): boolean {
   return !!set && set.size > 0;
 }
 
+export function isUserActiveInConversation(userId: string, coupleId: string): boolean {
+  const set = userSockets.get(userId);
+  if (!set || set.size === 0) return false;
+  for (const socket of set) {
+    if (
+      socket.readyState === WebSocket.OPEN &&
+      socket.coupleId === coupleId &&
+      socket.isFocused !== false
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function setSocketFocusState(socket: AuthenticatedSocket, isFocused: boolean): void {
+  socket.isFocused = isFocused;
+}
+
 export function sendToUser(userId: string, event: unknown): void {
   const set = userSockets.get(userId);
   if (!set) return;

@@ -1,6 +1,5 @@
-"use client";
-
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -20,12 +19,23 @@ export function SettingsModal({
   onToggleSound,
 }: SettingsModalProps) {
   const { theme, toggleTheme } = useTheme();
+  const {
+    permission,
+    isSubscribed,
+    loading: pushLoading,
+    showPreview,
+    error: pushError,
+    enableNotifications,
+    disableNotifications,
+    sendTestNotification,
+    toggleNotificationPreview,
+  } = usePushNotifications();
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-ink-900 shadow-2xl overflow-hidden p-6 space-y-6">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-ink-900 shadow-2xl overflow-hidden p-6 space-y-5 max-h-[90vh] overflow-y-auto no-scrollbar">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <h2 className="text-lg font-serif font-semibold text-mist">Settings & Profile</h2>
           <button onClick={onClose} className="text-mist-dim hover:text-mist text-lg">
@@ -76,6 +86,67 @@ export function SettingsModal({
             >
               {soundEnabled ? "🔊 Enabled" : "🔇 Muted"}
             </button>
+          </div>
+
+          {/* Browser Push Notifications */}
+          <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/5 border border-white/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-mist">Browser Push Notifications</p>
+                <p className="text-xs text-mist-dim">
+                  {permission === "denied"
+                    ? "Blocked in browser settings"
+                    : isSubscribed
+                    ? "Active on this device"
+                    : "Receive push alerts when backgrounded"}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={pushLoading || permission === "denied"}
+                onClick={() => (isSubscribed ? disableNotifications() : enableNotifications())}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition ${
+                  isSubscribed
+                    ? "bg-teal-soft/20 text-teal-soft border border-teal-soft/30 hover:bg-teal-soft/30"
+                    : "bg-white/10 text-mist-dim hover:bg-white/20"
+                }`}
+              >
+                {pushLoading ? "..." : isSubscribed ? "Enabled" : "Enable"}
+              </button>
+            </div>
+
+            {pushError && (
+              <p className="text-xs text-rose-soft mt-1">{pushError}</p>
+            )}
+
+            {isSubscribed && (
+              <div className="pt-2 mt-1 border-t border-white/5 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-mist">Message Preview</p>
+                  <p className="text-[11px] text-mist-dim">
+                    {showPreview ? "Shows message content" : "Shows 'New message' only"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleNotificationPreview(!showPreview)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-mist transition"
+                >
+                  {showPreview ? "Text Preview" : "Hide Text"}
+                </button>
+              </div>
+            )}
+
+            {isSubscribed && (
+              <button
+                type="button"
+                disabled={pushLoading}
+                onClick={() => sendTestNotification()}
+                className="w-full mt-1 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-mist text-xs font-medium transition text-center"
+              >
+                {pushLoading ? "Sending..." : "Send Test Notification"}
+              </button>
+            )}
           </div>
         </div>
 

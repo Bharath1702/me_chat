@@ -83,6 +83,9 @@ export function useChat(currentUserId: string): UseChatReturn {
     ws.onopen = () => {
       setConnectionState("connected");
       reconnectAttemptsRef.current = 0;
+      // Send initial focus state when socket opens
+      const isFocused = document.visibilityState === "visible" && document.hasFocus();
+      ws.send(JSON.stringify({ type: "focus_state", isFocused }));
     };
 
     ws.onmessage = (event) => {
@@ -213,8 +216,23 @@ export function useChat(currentUserId: string): UseChatReturn {
     const timer = setTimeout(() => {
       connectSocket();
     }, 0);
+
+    const handleFocusChange = () => {
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        const isFocused = document.visibilityState === "visible" && document.hasFocus();
+        socketRef.current.send(JSON.stringify({ type: "focus_state", isFocused }));
+      }
+    };
+
+    window.addEventListener("focus", handleFocusChange);
+    window.addEventListener("blur", handleFocusChange);
+    document.addEventListener("visibilitychange", handleFocusChange);
+
     return () => {
       clearTimeout(timer);
+      window.removeEventListener("focus", handleFocusChange);
+      window.removeEventListener("blur", handleFocusChange);
+      document.removeEventListener("visibilitychange", handleFocusChange);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       if (socketRef.current) socketRef.current.close();

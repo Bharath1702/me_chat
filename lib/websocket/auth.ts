@@ -8,6 +8,7 @@ import type { UserDocument } from "@/models/User";
 
 export type AuthenticatedSocket = WebSocket & {
   isAlive?: boolean;
+  isFocused?: boolean;
   userId?: string;
   coupleId?: string;
   partnerId?: string;

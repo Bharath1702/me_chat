@@ -1,8 +1,9 @@
 import type { Server as HTTPServer } from "node:http";
 import { WebSocketServer } from "ws";
 import { authenticateSocket, type AuthenticatedSocket } from "./auth";
-import { registerSocket, unregisterSocket, sendToUser, isUserOnline } from "./manager";
+import { registerSocket, unregisterSocket, sendToUser, isUserOnline, isUserActiveInConversation, setSocketFocusState } from "./manager";
 import { sendMessageService, markMessagesAsReadService, markMessagesAsDeliveredService } from "../services/message-service";
+import { triggerMessagePushNotification } from "../services/push-service";
 import { Types } from "mongoose";
 
 let wss: WebSocketServer | null = null;
@@ -25,6 +26,7 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
       wss?.handleUpgrade(request, socket, head, (ws) => {
         const authWs = ws as AuthenticatedSocket;
         authWs.isAlive = true;
+        authWs.isFocused = true;
         authWs.userId = auth.user._id.toString();
         authWs.coupleId = auth.coupleId;
         authWs.partnerId = auth.partnerId;
@@ -82,6 +84,11 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
             break;
           }
 
+          case "focus_state": {
+            setSocketFocusState(ws, !!payload.isFocused);
+            break;
+          }
+
           case "send_message": {
             const { content, clientMessageId, media, replyToId, msgType } = payload;
             try {
@@ -103,7 +110,7 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
                 })
               );
 
-              // Broadcast new message to partner
+              // Broadcast new message to partner over WebSocket
               sendToUser(ws.partnerId, {
                 type: "new_message",
                 message: res.message,
@@ -114,6 +121,14 @@ export function initWebSocketServer(server: HTTPServer): WebSocketServer {
                 sendToUser(ws.userId, {
                   type: "message_delivered",
                   messageId: res.message.id,
+                });
+              }
+
+              // Push Notification Trigger: Send push if partner is NOT actively viewing the chat tab
+              const isPartnerActive = isUserActiveInConversation(ws.partnerId, ws.coupleId);
+              if (!isPartnerActive) {
+                triggerMessagePushNotification(res.message).catch((pushErr) => {
+                  console.error("[ws:send_message] Error triggering push notification:", pushErr);
                 });
               }
             } catch (err: unknown) {
