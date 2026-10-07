@@ -18,8 +18,8 @@ function getVapidDetails() {
     if (!fallbackVapidKeys) {
       fallbackVapidKeys = webpush.generateVAPIDKeys();
     }
-    publicKey = fallbackVapidKeys.publicKey;
-    privateKey = fallbackVapidKeys.privateKey;
+    publicKey = fallbackVapidKeys!.publicKey;
+    privateKey = fallbackVapidKeys!.privateKey;
   }
 
   return { publicKey, privateKey, subject };
