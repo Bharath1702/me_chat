@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: { default: "TwoChat — Your private corner", template: "%s · TwoChat" },
   description:
     "TwoChat is a private messenger for exactly two people. One connection. No groups. No noise.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TwoChat",
+  },
 };
 
 export const viewport: Viewport = {

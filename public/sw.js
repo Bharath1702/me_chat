@@ -1,7 +1,19 @@
 // TwoChat Service Worker — PWA Caching & Web Push Notifications
 
-const CACHE_NAME = "twochat-v1";
-const STATIC_ASSETS = ["/", "/chat", "/connect", "/login", "/register", "/icon-192.png", "/badge-72.png"];
+const CACHE_NAME = "twochat-v2";
+const STATIC_ASSETS = [
+  "/",
+  "/chat",
+  "/connect",
+  "/login",
+  "/register",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/badge-72.png",
+];
 
 // Install Event — Cache static shell assets safely (never cache private /api routes)
 self.addEventListener("install", (event) => {
@@ -107,6 +119,6 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 // Notification Close Event
-self.addEventListener("notificationclose", (_event) => {
+self.addEventListener("notificationclose", () => {
   // Silent analytics or cleanup if needed
 });

@@ -26,7 +26,12 @@ export type UsePushNotificationsReturn = {
 };
 
 export function usePushNotifications(): UsePushNotificationsReturn {
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "default";
+  });
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
@@ -37,8 +42,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     if (typeof window === "undefined" || !("Notification" in window)) {
       return;
     }
-
-    setPermission(Notification.permission);
 
     // Register service worker if supported
     if ("serviceWorker" in navigator) {

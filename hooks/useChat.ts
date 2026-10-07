@@ -13,8 +13,8 @@ type UseChatReturn = {
   setMessages: React.Dispatch<React.SetStateAction<PublicMessage[]>>;
   hasMore: boolean;
   loadingMore: boolean;
-  incomingCallSignal: any;
-  sendCallSignal: (signal: any) => void;
+  incomingCallSignal: unknown;
+  sendCallSignal: (signal: unknown) => void;
   sendMessage: (
     content: string,
     media?: PublicMedia | null,
@@ -36,7 +36,7 @@ export function useChat(currentUserId: string): UseChatReturn {
   const [messages, setMessages] = useState<PublicMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [incomingCallSignal, setIncomingCallSignal] = useState<any>(null);
+  const [incomingCallSignal, setIncomingCallSignal] = useState<unknown>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -346,7 +346,7 @@ export function useChat(currentUserId: string): UseChatReturn {
     }
   }, []);
 
-  const sendCallSignal = useCallback((signal: any) => {
+  const sendCallSignal = useCallback((signal: unknown) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "call_signal", signal }));
     }

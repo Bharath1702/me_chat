@@ -141,38 +141,81 @@ describe("Iteration 6: Web Push Notifications Core & Privacy Logic", () => {
     expect(remainingSubs.length).toBe(0);
   });
 
-  it("Does not send push notification if user is active in conversation", async () => {
+  it("MANDATORY DIAGNOSTIC TEST: Sends push notification when recipient has 0 active WebSocket connections", async () => {
     const alice = await registerUser({ name: "Alice", password: "password123" });
     const bob = await registerUser({ name: "Bob", password: "password123" });
     await connectWithPartner(alice._id, { connectionId: bob.connectionId });
 
+    // Register Bob's iPhone push subscription
+    await registerPushSubscriptionService(bob._id, {
+      endpoint: "https://fcm.googleapis.com/fcm/send/bob-iphone-token",
+      keys: { p256dh: "bob-p256dh-key", auth: "bob-auth-secret" },
+      deviceName: "iPhone PWA",
+    });
+
     const sendPushSpy = vi.spyOn(webpush, "sendNotification").mockResolvedValue({} as any);
 
-    // Simulated check: if WS indicates user is active, websocket/server.ts skips calling triggerMessagePushNotification
-    const isUserActive = true;
-    let result = { sentCount: 0, failedCount: 0 };
-    if (!isUserActive) {
-      result = await triggerMessagePushNotification({
-        id: "m1",
-        coupleId: "c1",
-        senderId: alice._id.toString(),
-        receiverId: bob._id.toString(),
-        type: "text",
-        content: "Active chat test",
-        media: null,
-        status: "sent",
-        isEdited: false,
-        isDeleted: false,
-        deletedForEveryone: false,
-        reactions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        readAt: null,
-        deliveredAt: null,
-      });
-    }
+    // Bob has 0 WebSocket connections. Trigger message push notification.
+    const result = await triggerMessagePushNotification({
+      id: "m-offline-1",
+      coupleId: "couple-1",
+      senderId: alice._id.toString(),
+      receiverId: bob._id.toString(),
+      type: "text",
+      content: "Hey darling, are you there?",
+      media: null,
+      status: "sent",
+      isEdited: false,
+      isDeleted: false,
+      deletedForEveryone: false,
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      readAt: null,
+      deliveredAt: null,
+    });
 
-    expect(result).toEqual({ sentCount: 0, failedCount: 0 });
-    expect(sendPushSpy).not.toHaveBeenCalled();
+    expect(result.sentCount).toBe(1);
+    expect(sendPushSpy).toHaveBeenCalledTimes(1);
+    const pushPayload = JSON.parse(sendPushSpy.mock.calls[0][1] as string);
+    expect(pushPayload.title).toBe("Alice");
+    expect(pushPayload.body).toBe("Hey darling, are you there?");
+  });
+
+  it("Multi-socket: Sends push notification if one device is connected but NOT focused on the active conversation", async () => {
+    const alice = await registerUser({ name: "Alice", password: "password123" });
+    const bob = await registerUser({ name: "Bob", password: "password123" });
+    await connectWithPartner(alice._id, { connectionId: bob.connectionId });
+
+    await registerPushSubscriptionService(bob._id, {
+      endpoint: "https://fcm.googleapis.com/fcm/send/bob-laptop-token",
+      keys: { p256dh: "laptop-key", auth: "laptop-auth" },
+      deviceName: "MacBook Chrome",
+    });
+
+    const sendPushSpy = vi.spyOn(webpush, "sendNotification").mockResolvedValue({} as any);
+
+    // Bob's laptop tab is connected but blurred/backgrounded (isFocused = false)
+    const result = await triggerMessagePushNotification({
+      id: "m-unfocused-1",
+      coupleId: "couple-1",
+      senderId: alice._id.toString(),
+      receiverId: bob._id.toString(),
+      type: "text",
+      content: "Check this link when free",
+      media: null,
+      status: "sent",
+      isEdited: false,
+      isDeleted: false,
+      deletedForEveryone: false,
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      readAt: null,
+      deliveredAt: null,
+    });
+
+    expect(result.sentCount).toBe(1);
+    expect(sendPushSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -80,7 +80,8 @@ export function ChatShell({ currentUserId, currentUserName, partnerName }: ChatS
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   useEffect(() => {
-    if (incomingCallSignal && incomingCallSignal.type === "call_request") {
+    const signal = incomingCallSignal as { type?: string } | null;
+    if (signal && signal.type === "call_request") {
       setCallState("incoming");
     }
   }, [incomingCallSignal]);

@@ -10,11 +10,16 @@ import type { PublicMessage } from "./message-service";
 let fallbackVapidKeys: { publicKey: string; privateKey: string } | null = null;
 
 function getVapidDetails() {
-  let publicKey = process.env.VAPID_PUBLIC_KEY;
+  let publicKey = process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   let privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:admin@mechat.app";
 
   if (!publicKey || !privateKey) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "CRITICAL VAPID CONFIGURATION ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be configured in environment variables for production Web Push."
+      );
+    }
     if (!fallbackVapidKeys) {
       fallbackVapidKeys = webpush.generateVAPIDKeys();
     }
@@ -122,6 +127,7 @@ export async function sendPushNotificationToUser(
 
   const subscriptions = await PushSubscription.find({ userId }).lean<PushSubscriptionDocument[]>();
   if (!subscriptions || subscriptions.length === 0) {
+    console.log(`[PUSH_DISPATCH] User ${userId}: 0 subscriptions found.`);
     return { sentCount: 0, failedCount: 0 };
   }
 
@@ -148,13 +154,16 @@ export async function sendPushNotificationToUser(
     } catch (err: unknown) {
       failedCount++;
       const statusCode = (err as { statusCode?: number })?.statusCode;
+      console.warn(`[PUSH_DISPATCH_ERROR] User ${userId}: HTTP status ${statusCode || "unknown"}`);
       // Stale / Expired subscriptions (404 Not Found or 410 Gone) must be removed
       if (statusCode === 404 || statusCode === 410) {
+        console.log(`[PUSH_STALE_REMOVAL] User ${userId}: Removing expired subscription ${sub._id}`);
         await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {});
       }
     }
   }
 
+  console.log(`[PUSH_SUMMARY] User ${userId}: ${sentCount} sent, ${failedCount} failed.`);
   return { sentCount, failedCount };
 }
 
