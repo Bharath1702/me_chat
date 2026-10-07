@@ -46,6 +46,8 @@ export function AudioCallModal({
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+
   // Sync internal call state with props
   useEffect(() => {
     setActiveCallState(callState);
@@ -62,8 +64,23 @@ export function AudioCallModal({
       pcRef.current.close();
       pcRef.current = null;
     }
+    pendingIceCandidatesRef.current = [];
     setDuration(0);
   }, []);
+
+  // Helper to add pending candidates once remote description is set
+  const processPendingIceCandidates = async (pc: RTCPeerConnection) => {
+    while (pendingIceCandidatesRef.current.length > 0) {
+      const candidate = pendingIceCandidatesRef.current.shift();
+      if (candidate) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error("Error adding queued ICE candidate:", err);
+        }
+      }
+    }
+  };
 
   // Acquire high-quality microphone stream (48kHz sample rate, noise suppression)
   const getHighQualityAudioStream = async () => {
@@ -96,6 +113,17 @@ export function AudioCallModal({
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = event.streams[0];
         remoteAudioRef.current.play().catch(console.error);
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        setActiveCallState("connected");
+        setDuration(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          setDuration((prev) => prev + 1);
+        }, 1000);
       }
     };
 
@@ -142,6 +170,7 @@ export function AudioCallModal({
         try {
           const pc = createPeerConnection();
           await pc.setRemoteDescription(new RTCSessionDescription(incomingSignal.sdp));
+          await processPendingIceCandidates(pc);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           sendCallSignal({ type: "answer", sdp: answer });
@@ -155,6 +184,7 @@ export function AudioCallModal({
         try {
           if (pcRef.current) {
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(incomingSignal.sdp));
+            await processPendingIceCandidates(pcRef.current);
             setActiveCallState("connected");
           }
         } catch (err) {
@@ -163,8 +193,10 @@ export function AudioCallModal({
       } else if (type === "candidate") {
         // Add ICE candidate
         try {
-          if (pcRef.current && incomingSignal.candidate) {
+          if (pcRef.current && pcRef.current.remoteDescription && pcRef.current.remoteDescription.type) {
             await pcRef.current.addIceCandidate(new RTCIceCandidate(incomingSignal.candidate));
+          } else if (incomingSignal.candidate) {
+            pendingIceCandidatesRef.current.push(incomingSignal.candidate);
           }
         } catch (err) {
           console.error("Error adding ice candidate:", err);
